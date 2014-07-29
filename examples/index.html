@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<head>
+  <title>it's live! from lotus</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <p>It's Live!</p>
+  <div id="messages"></div>
+
+  <script>
+    var source = new EventSource("http://localhost:9292/live");
+
+    source.addEventListener("message", function(e) {
+      var newMessage =  document.createElement("p");
+      console.log(e.data);
+      newMessage.innerHTML = e.data;
+      document.getElementById("messages").appendChild(newMessage);
+    });
+
+    source.addEventListener("refresh", function(e) {
+      var rawDirInfo = eval("("+ e.data +")");
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>
