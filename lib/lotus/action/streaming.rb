@@ -1,4 +1,5 @@
 require 'json'
+require 'pp'
 
 module Lotus
   module Action
@@ -12,10 +13,22 @@ module Lotus
         self.headers.merge! "Cache-Control" => "no-cache"
         self.format = :sse
 
-        queue = Queue.new
-        stream = self.body = Stream.new queue, @_env
-        sse_buffer = SSE.new stream
-        Thread.new { blk.call(sse_buffer) }.abort_on_exception = true
+        if @_env['async.callback']
+          puts "OMG, async!"
+          queue = EM::Queue.new
+          stream = self.body = EventStream.new queue
+          sse_buffer = SSE.new stream
+
+          EM.defer { blk.call(sse_buffer) }
+          EM.defer { @_env['async.callback'].call [ 200, { 'Content-Type' => 'text/event-stream' }, stream ] }
+          throw :async
+        else
+          puts "Not async, threading!"
+          queue = Queue.new
+          stream = self.body = Stream.new queue
+          sse_buffer = SSE.new stream
+          Thread.new { blk.call(sse_buffer) }.abort_on_exception = true
+        end
       end
 
       class SSE
@@ -35,9 +48,8 @@ module Lotus
       end
 
       class Stream
-        def initialize(queue, env)
+        def initialize(queue)
           @queue = queue
-          @env = env
         end
 
         def write(msg)
@@ -45,11 +57,28 @@ module Lotus
         end
 
         def each
-          if @env['async.callback']
-            # event machine stuff here (thin/rainbows...)
-          else
-            loop { yield @queue.pop }
-          end
+          loop { yield @queue.pop }
+        end
+      end # Streamer
+
+      class EventStream
+        require 'eventmachine'
+        include ::EM::Deferrable
+
+        def initialize(queue)
+          @queue = queue
+        end
+
+        def write(msg)
+          @queue.push msg
+        end
+
+        def each(&block)
+          EM.add_timer(0.006) {
+            @queue.pop(&block)
+            each(&block)
+          }
+          @queue.pop(&block)
         end
       end # Streamer
 
