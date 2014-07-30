@@ -14,11 +14,14 @@ class Streammer
         q.push "{dirs: '#{dirs}', event: 'refresh'}\n"
       }
 
-      Thread.new { fsevent.run }
+      EM.defer { fsevent.run }
 
-      while chunck = q.pop
-        yield chunck
-      end
+      # how do I make the con stay open?
+      EM.defer {
+        while chunck = q.pop
+          yield chunck
+        end
+      }
   end
 end
 
