@@ -13,18 +13,17 @@ module Lotus
         self.headers.merge! "Cache-Control" => "no-cache"
         self.format = :sse
 
+        queue = Queue.new
+
         if @_env['async.callback']
-          puts "OMG, async!"
-          queue = EM::Queue.new
           stream = self.body = EventStream.new queue
           sse_buffer = SSE.new stream
 
           EM.defer { blk.call(sse_buffer) }
-          EM.defer { @_env['async.callback'].call [ 200, { 'Content-Type' => 'text/event-stream' }, stream ] }
+
+          @_env['async.callback'].call [ 200, { 'Content-Type' => 'text/event-stream' }, stream ]
           throw :async
         else
-          puts "Not async, threading!"
-          queue = Queue.new
           stream = self.body = Stream.new queue
           sse_buffer = SSE.new stream
           Thread.new { blk.call(sse_buffer) }.abort_on_exception = true
@@ -74,11 +73,7 @@ module Lotus
         end
 
         def each(&block)
-          EM.add_timer(0.006) {
-            @queue.pop(&block)
-            each(&block)
-          }
-          @queue.pop(&block)
+          EM.defer { loop { yield @queue.pop } }
         end
       end # Streamer
 
