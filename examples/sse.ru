@@ -19,8 +19,11 @@ class Blocking
       directories = [ File.join(File.expand_path("../", __FILE__)) ]
       fsevent = FSEvent.new
       out.write "you can push messages at any time..."
+      counter = 1
       fsevent.watch(directories) { |dirs|
+        counter += 1;
         out.write({dirs: dirs }, event: "refresh")
+        out.close if counter == 10
       }
       fsevent.run
     end

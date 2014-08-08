@@ -6,13 +6,17 @@ module Lotus
       class SSE
         def self.content_type; 'text/event-stream' end
         def self.format; :sse; end
+
         def open(stream); nil end
-        def close(stream); nil end
 
         def call(message, options = {})
           event, id = options.fetch(:event, nil), options.fetch(:id, nil)
           message = JSON.generate(message) unless message.is_a? String
           construct_message message, id, event
+        end
+
+        def close(stream)
+          stream.write nil
         end
 
         private
@@ -47,17 +51,19 @@ module Lotus
 
         def write(message, options = {})
           @queue.push(
-            @transport.call message, options
+            message ? ->(){ @transport.call message, options } : nil
           )
         end
 
         def each(&async_blk)
           loop {
             message = @queue.pop
-            # break unless message
-            yield message
+            if message
+              yield message.call
+            else
+              break
+            end
           }
-          close
         end
 
         def close
@@ -87,9 +93,13 @@ module Lotus
 
         def write(message, options = {})
           EM::next_tick {
-            @async_blk.call(
-              @transport.call message, options
-            )
+            if message
+              @async_blk.call(
+                @transport.call message, options
+              )
+            else
+              succeed
+            end
           }
         end
 
