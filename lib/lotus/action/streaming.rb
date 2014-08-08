@@ -3,13 +3,9 @@ require 'json'
 module Lotus
   module Action
     module Streaming
-      Lotus::Controller.configure do |config|
-        format sse: 'text/event-stream'
-      end
-
       class SSE
-        def content_type; 'text/event-stream' end
-        def format; :sse end
+        def self.content_type; 'text/event-stream' end
+        def self.format; :sse; end
         def open(stream); nil end
         def close(stream); nil end
 
@@ -29,95 +25,61 @@ module Lotus
         end
       end
 
-      class QueueStream
-        def initialize(transport = ->(msg, _){ msg }, blocking_code)
-          @transport = transport
-          @blocking_code = blocking_code
-        end
+      KNOWN_TRANSPORTS = [ SSE ]
 
-        def queue
-          raise "You need to return an #push & #pop object"
-        end
-
-        def open(env)
-          raise "You need to know how to open the `request...`"
-        end
-
-        def write(message, options = {})
-          queue.push(
-            @transport.call message, options
-          )
-        end
-
-        def each(&async_blk)
-          @async_blk = async_blk
-          consume
-        end
-
-        def close
-          @transport.close self
-        end
-
-        private
-
-        def consume
-          raise "You need to implement the #queue consumer logic"
+      Lotus::Controller.configure do |config|
+        KNOWN_TRANSPORTS.each do |transport_type|
+          format transport_type.format => transport_type.content_type
         end
       end
 
-      class BlockingEventStream < QueueStream
-        include ::EM::Deferrable if require 'eventmachine'
-
-        def open(env)
-          @transport.open self
-          response = [ 200, { 'Content-Type' => @transport.content_type }, self ]
-          env['async.callback'].call response
-          EM::defer { @blocking_code.call self }
-          throw :async
+      class Stream
+        def initialize(transport, blocking_code)
+          @transport, @blocking_code = transport, blocking_code
+          @queue = Queue.new
         end
 
-        def queue
-          @queue ||= ::EM::Queue.new
-        end
-
-        private
-
-        def consume
-          front = ->(msg) {
-            @async_blk.call msg
-            ::EM::add_timer(0.006) { queue.pop(&front) }
-          }
-          queue.pop(&front)
-        end
-      end
-
-      class Stream < QueueStream
         def open(env)
           @transport.open self
           Thread.new { @blocking_code.call self }.abort_on_exception = true
           self
         end
 
-        def queue
-          @queue ||= Queue.new
+        def write(message, options = {})
+          @queue.push(
+            @transport.call message, options
+          )
         end
 
-        private
-
-        def consume
+        def each(&async_blk)
           loop {
             message = @queue.pop
-            @async_blk.call message
+            # break unless message
+            yield message
           }
+          close
+        end
+
+        def close
+          @transport.close self
         end
       end
 
       class EventStream
+        require 'eventmachine'
         include ::EM::Deferrable
 
-        def initialize(transport = ->(msg, _){ msg }, async_code)
-          @transport = transport
-          @async_code = async_code
+        def initialize(transport, async_code, scheduler = :next_tick)
+          @transport, @async_code = transport, async_code
+          @scheduler = scheduler
+        end
+
+        def open(env)
+          @transport.open self
+          response = [ 200, { 'Content-Type' => @transport.class.content_type }, self ]
+          env['async.callback'].call response
+          EM::send(@scheduler) { @async_code.call self }
+          throw :async
         end
 
         def write(message, options = {})
@@ -132,14 +94,6 @@ module Lotus
           @async_blk = async_blk
         end
 
-        def open(env)
-          @transport.open self
-          response = [ 200, { 'Content-Type' => @transport.content_type }, self ]
-          env['async.callback'].call response
-          EM::next_tick { @async_code.call self }
-          throw :async
-        end
-
         def close
           @transport.close self
         end
@@ -148,30 +102,31 @@ module Lotus
       protected
 
       def stream(options = {}, &blk)
-        transport = options.fetch :transport, SSE.new
-        raise 'noooo... invalid transport' unless transport.respond_to? :call
-
-        self.headers['Cache-Control'] = 'no-cache'
-        self.headers['Content-Type']  = transport.content_type
-        self.format = transport.format
-
+        transport = prepare_for_transport options.fetch(:transport, SSE)
         will_block = options.fetch(:will_block, false)
-        self.body = open_stream will_block, transport, blk
+        stream = new_stream will_block, transport, blk
+        self.body = stream.open @env
       end
 
       private
 
-      def stream_class(will_block)
-        if @_env['async.callback']
-          will_block ? BlockingEventStream : EventStream
-        else
-          Stream
-        end
+      def prepare_for_transport(transport_type)
+        transport = transport_type.new
+        raise 'noooo... invalid transport' unless transport.respond_to? :call
+
+        self.headers['Cache-Control'] = 'no-cache'
+        self.headers['Content-Type']  = transport_type.content_type
+        self.format = transport_type.format
+        transport
       end
 
-      def open_stream(will_block, transport, blk)
-        stream = stream_class(will_block).new(transport, blk)
-        stream.open @_env
+      def new_stream(will_block, transport, blk)
+        if @_env['async.callback']
+          scheduler = will_block ? :defer : :next_tick
+          EventStream.new transport, blk, scheduler
+        else
+          Stream.new transport, blk
+        end
       end
     end
   end
