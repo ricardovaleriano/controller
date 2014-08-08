@@ -65,9 +65,12 @@ module Lotus
         end
       end
 
-      class EventStream
+      begin
         require 'eventmachine'
-        include ::EM::Deferrable
+      rescue LoadError
+      end
+      class EventStream
+        include ::EM::Deferrable if defined? ::EM::Deferrable
 
         def initialize(transport, async_code, scheduler = :next_tick)
           @transport, @async_code = transport, async_code
@@ -105,7 +108,7 @@ module Lotus
         transport = prepare_for_transport options.fetch(:transport, SSE)
         will_block = options.fetch(:will_block, false)
         stream = new_stream will_block, transport, blk
-        self.body = stream.open @env
+        self.body = stream.open @_env
       end
 
       private
