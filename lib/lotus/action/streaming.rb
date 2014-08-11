@@ -2,13 +2,12 @@ require 'json'
 
 module Lotus
   module Action
-    # Allows a user to send a stream of data for clients accessing a
-    # Lotus::Action.
+    # Send a stream of data for clients accessing a Lotus::Action.
     #
     # By default the stream will be sent using the Server Sent Events
     # specification (https://developer.mozilla.org/en-US/docs/Server-sent_events/Using_server-sent_events).
     #
-    # @example
+    # @example streaming where the block code will block the current thread
     #   require 'lotus/controller'
     #   require 'lotus/action/streaming'
     #
@@ -23,7 +22,7 @@ module Lotus
     #     end
     #
     #     def call(params)
-    #       stream will_block: true do |out|
+    #       stream_will_block do |out|
     #         out.write "streaming from lotus!"
     #         directories = [ File.join(File.expand_path("../", __FILE__)) ]
     #         fsevent = FSEvent.new
@@ -228,10 +227,15 @@ module Lotus
 
       protected
 
-      def stream(options = {}, &blk)
-        transport = prepare_for_transport options.fetch(:transport, SSE)
-        will_block = options.fetch(:will_block, false)
-        stream = new_stream will_block, transport, blk
+      def stream(transport_type = SSE, &blk)
+        transport = prepare_for_transport transport_type
+        stream = new_stream false, transport, blk
+        self.body = stream.open @_env
+      end
+
+      def stream_will_block(transport_type = SSE, &blk)
+        transport = prepare_for_transport transport_type
+        stream = new_stream true, transport, blk
         self.body = stream.open @_env
       end
 
