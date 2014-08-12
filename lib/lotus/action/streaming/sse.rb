@@ -73,9 +73,12 @@ module Lotus
         # @param options [Hash] optional :id and :event for the sse message
         # @return [String] the valid sse string message
         def call(message, options = {})
-          event, id = options.fetch(:event, nil), options.fetch(:id, nil)
+          event, id, retry_time =
+            options.fetch(:event, nil),
+            options.fetch(:id, nil),
+            options.fetch(:retry, nil)
           message = JSON.generate(message) unless message.is_a? String
-          construct_message message, id, event
+          construct_message message, id, event, retry_time
         end
 
         # Will be called when the user decides to finish the streaming. Since
@@ -96,8 +99,9 @@ module Lotus
         # @param id [String] the id for this sse message
         # @param event [String] an event name for this sse message
         # @retur [String] the valid sse message
-        def construct_message(message, id, event)
+        def construct_message(message, id, event, retry_time)
           final_message = ""
+          final_message << "retry: #{retry_time}\n" if retry_time
           final_message << "id: #{id}\n" if id
           final_message << "event: #{event}\n" if event
           final_message << "data: #{message}\n\n"

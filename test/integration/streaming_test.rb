@@ -102,7 +102,11 @@ describe 'Streaming actions' do
         response.body.must_equal "event: go\ndata: starting\n\n"
       end
 
-      it 'send the retry'
+      it 'send the retry' do
+        response = @action.get('/', params: { retry: '10000' })
+        response.body.must_equal "retry: 10000\ndata: starting\n\n"
+      end
+
       it 'send a multiline string as data'
       it 'just ignores unknown options'
     end
