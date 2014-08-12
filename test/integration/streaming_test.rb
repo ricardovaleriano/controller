@@ -15,6 +15,17 @@ describe 'Streaming actions' do
     end
   end
 
+  class StreamingSSE
+    include Lotus::Action
+    include Lotus::Action::Streaming
+
+    def call(params)
+      stream do |out|
+        out.write "starting", event: 'starting'
+      end
+    end
+  end
+
   class BlockingStreaming
     include Lotus::Action
     include Lotus::Action::Streaming
@@ -51,8 +62,16 @@ describe 'Streaming actions' do
       response.body.must_equal "data: starting\n\ndata: streaming\n\ndata: good bye!\n\n"
     end
 
-    it 'forces the right http header based on the transport'
-    it 'responds with 200 http status code'
+    it 'forces the right (default) content type header' do
+      response = Rack::MockRequest.new(StreamingAction.new).get('/')
+      response.headers['Content-Type'].must_equal 'text/event-stream'
+    end
+
+    it 'responds with 200 http status code' do
+      response = Rack::MockRequest.new(StreamingAction.new).get('/')
+      response.status.must_equal 200
+    end
+
     it 'closes an uninteded left open stream'
 
     describe 'defaults to server sent events' do
