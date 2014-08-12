@@ -23,10 +23,8 @@ module Lotus
     #
     #     def call(params)
     #       stream_will_block do |out|
-    #         out.write "streaming from lotus!"
     #         directories = [ File.join(File.expand_path("../", __FILE__)) ]
     #         fsevent = FSEvent.new
-    #         out.write "you can push messages at any time..."
     #         counter = 1
     #         fsevent.watch(directories) { |dirs|
     #           counter += 1;
