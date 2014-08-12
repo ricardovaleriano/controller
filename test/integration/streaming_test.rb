@@ -27,17 +27,6 @@ describe 'Streaming actions' do
     end
   end
 
-  class StreamingSSE
-    include Lotus::Action
-    include Lotus::Action::Streaming
-
-    def call(params)
-      stream do |out|
-        out.write 'starting', event: 'starting'
-      end
-    end
-  end
-
   class BlockingStreaming
     include Lotus::Action
     include Lotus::Action::Streaming
@@ -68,6 +57,17 @@ describe 'Streaming actions' do
     end
   end
 
+  class StreamingError
+    include Lotus::Action
+    include Lotus::Action::Streaming
+
+    def call(params)
+      stream do |out|
+        raise 'OMG!'
+      end
+    end
+  end
+
   describe 'Non blocking ("normal") stream' do
     it 'receives the response streamed in the stream block' do
       response = Rack::MockRequest.new(StreamingAction.new).get('/')
@@ -85,11 +85,13 @@ describe 'Streaming actions' do
     end
 
     it 'closes an uninteded left open stream'
+    it 'recovers from exception during the streaming'
 
     describe 'defaults the transport to server sent events' do
       before do
         @action = Rack::MockRequest.new(StreamingActionWithOptions.new)
       end
+
       it 'send the id' do
         response = @action.get('/', params: { id: '123' })
         response.body.must_equal "id: 123\ndata: starting\n\n"
@@ -102,6 +104,7 @@ describe 'Streaming actions' do
 
       it 'send the retry'
       it 'send a multiline string as data'
+      it 'just ignores unknown options'
     end
   end
 
