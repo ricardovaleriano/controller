@@ -124,18 +124,20 @@ module Lotus
       protected
 
       def stream(transport_type = SSE, &blk)
-        transport = prepare_for_transport transport_type
-        stream = new_stream false, transport, blk
-        self.body = stream.open @_env
+        open_stream false, transport_type, blk
       end
 
       def stream_will_block(transport_type = SSE, &blk)
-        transport = prepare_for_transport transport_type
-        stream = new_stream true, transport, blk
-        self.body = stream.open @_env
+        open_stream true, transport_type, blk
       end
 
       private
+
+      def open_stream(blocking, transport_type, blk)
+        transport = prepare_for_transport transport_type
+        stream = new_stream blocking, transport, blk
+        self.body = stream.open @_env
+      end
 
       def prepare_for_transport(transport_type)
         transport = transport_type.new
