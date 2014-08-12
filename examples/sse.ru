@@ -41,9 +41,13 @@ class NonBlockingEM
   def call(params)
     stream do |out|
       out.write "streaming from lotus!"
-      EventMachine::add_timer(1) { out.write "you can push messages at any time..." }
+      EM::add_timer(1) { out.write "you can push messages at any time..." }
+      EM::add_timer(13) {
+        out.write "so 13 seconds has passed since the request, closing..."
+        out.close
+      }
       (3...8).each do |i|
-        EventMachine::add_timer(i) { out.write "streaming... " }
+        EM::add_timer(i) { out.write "streaming... " }
       end
     end
   end
@@ -64,8 +68,11 @@ class NonBlockingEMFS
       out.write "streaming from lotus!"
       directories = [ File.join(File.expand_path("../", __FILE__)) ]
       out.write "you can push messages at any time..."
+      counter = 1
       listener = Listen.to(*directories) { |modified, added, moved|
+        counter += 1
         out.write({dirs: modified }, event: "refresh")
+        out.close if counter == 10
       }
       listener.start
     end
