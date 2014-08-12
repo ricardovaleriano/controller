@@ -7,9 +7,21 @@ describe 'Streaming actions' do
 
     def call(params)
       stream do |out|
-        out.write "starting"
-        out.write "streaming"
-        out.write "good bye!"
+        out.write 'starting'
+        out.write 'streaming'
+        out.write 'good bye!'
+        out.close
+      end
+    end
+  end
+
+  class StreamingActionWithOptions
+    include Lotus::Action
+    include Lotus::Action::Streaming
+
+    def call(params)
+      stream do |out|
+        out.write 'starting', params.params
         out.close
       end
     end
@@ -21,7 +33,7 @@ describe 'Streaming actions' do
 
     def call(params)
       stream do |out|
-        out.write "starting", event: 'starting'
+        out.write 'starting', event: 'starting'
       end
     end
   end
@@ -34,10 +46,10 @@ describe 'Streaming actions' do
 
     def call(params)
       blocking_stream do |out|
-        out.write "starting"
-        out.write "gonna block..."
+        out.write 'starting'
+        out.write 'gonna block...'
         latch.wait
-        out.write "good bye!"
+        out.write 'good bye!'
         out.close
       end
     end
@@ -49,9 +61,9 @@ describe 'Streaming actions' do
 
     def call(params)
       stream do |out|
-        out.write "starting"
-        out.write "streaming"
-        out.write "good bye!"
+        out.write 'starting'
+        out.write 'streaming'
+        out.write 'good bye!'
       end
     end
   end
@@ -74,10 +86,22 @@ describe 'Streaming actions' do
 
     it 'closes an uninteded left open stream'
 
-    describe 'defaults to server sent events' do
-      it 'send the id'
-      it 'send the event name'
+    describe 'defaults the transport to server sent events' do
+      before do
+        @action = Rack::MockRequest.new(StreamingActionWithOptions.new)
+      end
+      it 'send the id' do
+        response = @action.get('/', params: { id: '123' })
+        response.body.must_equal "id: 123\ndata: starting\n\n"
+      end
+
+      it 'send the event name' do
+        response = @action.get('/', params: { event: 'go' })
+        response.body.must_equal "event: go\ndata: starting\n\n"
+      end
+
       it 'send the retry'
+      it 'send a multiline string as data'
     end
   end
 
