@@ -14,7 +14,7 @@ class Blocking
   end
 
   def call(params)
-    stream_will_block do |out|
+    blocking_stream do |out|
       out.write "streaming from lotus!"
       directories = [ File.join(File.expand_path("../", __FILE__)) ]
       fsevent = FSEvent.new

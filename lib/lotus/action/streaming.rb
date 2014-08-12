@@ -8,7 +8,27 @@ module Lotus
     # By default the stream will be sent using the Server Sent Events
     # specification (https://developer.mozilla.org/en-US/docs/Server-sent_events/Using_server-sent_events).
     #
-    # @example streaming where the block code will block the current thread
+    # @example simple streaming (without blocking) by calling #straem
+    #  require 'lotus/controller'
+    #  require 'lotus/action/streaming'
+    #  require "listen"
+    #
+    #  class NonBlocking
+    #    include Lotus::Action
+    #    include Lotus::Action::Streaming
+    #
+    #    def call(params)
+    #      stream do |out|
+    #        directories = [ File.join(File.expand_path("../", __FILE__)) ]
+    #        listener = Listen.to(*directories) { |modified, added, moved|
+    #          out.write({dirs: modified }, event: "refresh")
+    #        }
+    #        listener.start
+    #      end
+    #    end
+    #  end
+    #
+    # @example blocking streaming by calling blocking_stream
     #   require 'lotus/controller'
     #   require 'lotus/action/streaming'
     #
@@ -23,14 +43,11 @@ module Lotus
     #     end
     #
     #     def call(params)
-    #       stream_will_block do |out|
+    #       blocking_stream do |out|
     #         directories = [ File.join(File.expand_path("../", __FILE__)) ]
     #         fsevent = FSEvent.new
-    #         counter = 1
     #         fsevent.watch(directories) { |dirs|
-    #           counter += 1;
     #           out.write({dirs: dirs }, event: "refresh")
-    #           out.close if counter == 10
     #         }
     #         fsevent.run
     #       end
@@ -127,7 +144,7 @@ module Lotus
         open_stream false, transport_type, blk
       end
 
-      def stream_will_block(transport_type = SSE, &blk)
+      def blocking_stream(transport_type = SSE, &blk)
         open_stream true, transport_type, blk
       end
 
