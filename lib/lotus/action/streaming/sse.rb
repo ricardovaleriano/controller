@@ -104,7 +104,10 @@ module Lotus
           final_message << "retry: #{retry_time}\n" if retry_time
           final_message << "id: #{id}\n" if id
           final_message << "event: #{event}\n" if event
-          final_message << "data: #{message}\n\n"
+          message.split("\n").each do |chunck|
+            final_message << "data: #{chunck}\n"
+          end
+          final_message << "\n"
         end
       end
     end

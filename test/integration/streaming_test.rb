@@ -113,7 +113,7 @@ describe 'Streaming actions' do
       it 'send a multiline string as data' do
         action = Rack::MockRequest.new StreamingMultilineString.new
         response = action.get('/')
-        response.body.must_equal "data: wow\ndata: such a message\n data: much multilined\n\n"
+        response.body.must_equal "data: wow\ndata: such a message\ndata: much multilined\n\n"
       end
     end
   end

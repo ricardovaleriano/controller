@@ -48,5 +48,10 @@ describe Lotus::Action::Streaming::SSE do
       stream_message = "retry: 10000\ndata: much streaming\n\n"
       @sse.call('much streaming', retry: '10000').must_equal stream_message
     end
+
+    it 'handles a multiline string' do
+      stream_message = "data: one\ndata: multiline\ndata: message\n\n"
+      @sse.call("one\nmultiline\nmessage").must_equal stream_message
+    end
   end
 end
