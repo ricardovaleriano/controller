@@ -71,7 +71,9 @@ module Lotus
 
         def open(env)
           @transport.open self
-          Thread.new { @blocking_code.call self }.abort_on_exception = true
+          Thread.new {
+            @blocking_code.call self
+          }.abort_on_exception = true
           self
         end
 
