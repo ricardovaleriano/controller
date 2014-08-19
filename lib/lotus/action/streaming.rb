@@ -120,7 +120,7 @@ module Lotus
         end
 
         def write(message, options = {})
-          EM::next_tick {
+          EM::next_tick do
             if message
               @async_blk.call(
                 @transport.call message, options
@@ -128,7 +128,7 @@ module Lotus
             else
               succeed
             end
-          }
+          end
         end
 
         def each(&async_blk)
