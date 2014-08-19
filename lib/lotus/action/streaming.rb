@@ -11,7 +11,7 @@ module Lotus
     # @example simple streaming (without blocking) by calling #straem
     #  require 'lotus/controller'
     #  require 'lotus/action/streaming'
-    #  require "listen"
+    #  require 'listen'
     #
     #  class NonBlocking
     #    include Lotus::Action
@@ -19,14 +19,20 @@ module Lotus
     #
     #    def call(params)
     #      stream do |out|
-    #        directories = [ File.join(File.expand_path("../", __FILE__)) ]
+    #        directories = [ File.expand_path('../', __FILE__) ]
     #        listener = Listen.to(*directories) { |modified, added, moved|
-    #          out.write({dirs: modified }, event: "refresh")
+    #          out.write({ dirs: modified }, event: 'refresh')
     #        }
     #        listener.start
     #      end
     #    end
     #  end
+    #
+    # The #stream method works for threaded and evented servers as well. But if
+    # you will use this feature in an evented server, and the code in your
+    # action is blocking, you will need to tell it explicitly. In this case, use
+    # the method #blocking_stream. Or, better yet, find an non blocking
+    # alternative for your implementation.
     #
     # @example blocking streaming by calling blocking_stream
     #   require 'lotus/controller'
