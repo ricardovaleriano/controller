@@ -84,14 +84,14 @@ module Lotus
         end
 
         def each(&async_blk)
-          loop {
+          loop do
             message = @queue.pop
             if message
               yield message.call
             else
               break
             end
-          }
+          end
         end
 
         def close
