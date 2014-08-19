@@ -1,5 +1,16 @@
 require 'json'
 require 'lotus/action/streaming/sse'
+require 'lotus/action/streaming/stream'
+
+# the following should be replaced by a check in the em stuff. but i haven't
+# figured out why it's not working. Need to be something like:
+# require 'event_stream' if defined?(EM)
+begin
+  require 'eventmachine'
+  require 'lotus/action/streaming/event_stream'
+rescue LoadError
+  # this app do not need event_stream
+end
 
 module Lotus
   module Action
@@ -66,83 +77,6 @@ module Lotus
       Lotus::Controller.configure do |config|
         KNOWN_TRANSPORTS.each do |transport_type|
           format transport_type.format => transport_type.content_type
-        end
-      end
-
-      class Stream
-        def initialize(transport, blocking_code)
-          @transport, @blocking_code = transport, blocking_code
-          @queue = Queue.new
-        end
-
-        def open(env)
-          @transport.open self
-          Thread.new {
-            @blocking_code.call self
-          }.abort_on_exception = true
-          self
-        end
-
-        def write(message, options = {})
-          @queue.push(
-            message ? ->(){ @transport.call message, options } : nil
-          )
-        end
-
-        def each(&async_blk)
-          loop do
-            message = @queue.pop
-            if message
-              yield message.call
-            else
-              break
-            end
-          end
-        end
-
-        def close
-          @transport.close self
-        end
-      end
-
-      begin
-        require 'eventmachine'
-      rescue LoadError
-      end
-      class EventStream
-        include ::EM::Deferrable if defined? ::EM::Deferrable
-
-        def initialize(transport, async_code, scheduler = :next_tick)
-          @transport, @async_code = transport, async_code
-          @scheduler = scheduler
-        end
-
-        def open(env)
-          @transport.open self
-          response = [ 200, { 'Content-Type' => @transport.class.content_type }, self ]
-          env['async.callback'].call response
-          EM::send(@scheduler) { @async_code.call self }
-          throw :async
-        end
-
-        def write(message, options = {})
-          EM::next_tick do
-            if message
-              @async_blk.call(
-                @transport.call message, options
-              )
-            else
-              succeed
-            end
-          end
-        end
-
-        def each(&async_blk)
-          @async_blk = async_blk
-        end
-
-        def close
-          @transport.close self
         end
       end
 
