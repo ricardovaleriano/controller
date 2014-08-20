@@ -14,3 +14,4 @@ gem 'lotus-utils',    require: false, github: 'lotus/utils'
 gem 'simplecov',      require: false
 gem 'coveralls',      require: false
 gem 'countdownlatch', require: false
+gem 'eventmachine',   require: false
