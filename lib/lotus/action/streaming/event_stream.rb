@@ -20,7 +20,7 @@ module Lotus
           @transport.open self
           response = [ 200, { 'Content-Type' => @transport.class.content_type }, self ]
           env['async.callback'].call response
-          EM::send(@scheduler) { @async_code.call self }
+          EM::__send__(@scheduler) { @async_code.call self }
           throw :async
         end
 
