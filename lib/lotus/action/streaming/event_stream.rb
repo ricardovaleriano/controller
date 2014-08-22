@@ -37,11 +37,14 @@ module Lotus
           throw :async
         end
 
-        # Uses the transport passed in the initializer to transform a message
-        # and. Then yield it to the block passed to each (called by rack).
+        # Uses the transport passed in the initializer to transform a message,
+        # and then yield it to the block passed to each (called by rack).
         #
         # If the message is a nil value, it will consider that the connection
         # need to be closed.
+        #
+        # @param message [Object] some information to be transformed by the transport and streamed to the client
+        # @param options [Hash] this options will be passed to the transport
         def write(message, options = {})
           EM::next_tick do
             if message
@@ -54,10 +57,17 @@ module Lotus
           end
         end
 
+        # The method called by Rack to generate a response body. This is
+        # important part in the async response. The block passed to each will be
+        # stored to be called when a message arrives via #write invocations.
+        #
+        # @param async_blk [#call]
         def each(&async_blk)
           @async_blk = async_blk
         end
 
+        # Informs the transport that the streaming is done. If the transport
+        # needs it can inform the client, or something like that.
         def close
           @transport.close self
         end
