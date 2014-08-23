@@ -1,0 +1,14 @@
+source 'http://rubygems.org'
+
+
+gem 'lotus-validations', require: false, github: 'lotus/validations'
+gem 'lotus-router', require: false, github: 'lotus/router'
+gem 'lotus-controller', require: false, path: File.expand_path('../', __dir__)
+
+gem 'puma'
+gem 'thin'
+
+gem 'rb-fsevent'
+gem 'listen'
+gem 'redis'
+gem 'em-hiredis'
